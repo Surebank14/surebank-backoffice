@@ -118,7 +118,7 @@ const CustomerAccountDashboard = () => {
   const canManageCustomerFunds = ['Admin', 'Manager'].includes(loggedInStaffRole);
   const canCreateCustomerDeposit = loggedInStaffRole !== 'Manager';
   const canDirectlyWithdrawCustomerFunds = loggedInStaffRole === 'Admin';
-  const canRequestCustomerProduct = ['Agent', 'OnlineRep', 'Rep'].includes(loggedInStaffRole);
+  const canRequestCustomerProduct = ['Admin', 'Agent', 'OnlineRep', 'Rep'].includes(loggedInStaffRole);
   const canChangeSBProduct = canTransferWalletToPackage;
   const hasCustomerSettlementBankDetails = Boolean(
     newPhone?.settlementBankDetails?.bankName &&
@@ -812,10 +812,6 @@ if(selectedAccount){
       return;
     }
 
-    if (nextSellingPrice < Number(item?.paidAmount || 0)) {
-      setErrors("Selling price cannot be less than the amount already paid for this item.");
-      return;
-    }
     if (Number(item?.costSubtotal || 0) > 0 && nextSellingPrice < Number(item.costSubtotal || 0)) {
       setErrors("Selling price cannot be less than approved cost price.");
       return;
@@ -1485,7 +1481,7 @@ if(selectedAccount){
                   <td className="border-t border-gray-200 p-1 md:p-2">
                     {delivered ? (
                       <span className="text-[10px] text-gray-400 md:text-xs">No action</span>
-                    ) : canRequestCustomerProduct ? (
+                    ) : canRequestCustomerProduct && (!isAdmin || !requested) ? (
                       <div className="flex min-w-[120px] flex-col gap-1 md:min-w-[150px] md:gap-1.5">
                         {isAdmin && (
                           <button
@@ -1514,7 +1510,7 @@ if(selectedAccount){
                             disabled={requestingSBItemId === actionKey}
                             className="rounded bg-yellow-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-yellow-700 disabled:bg-gray-400 md:px-3 md:py-1.5 md:text-xs"
                           >
-                            {requestingSBItemId === actionKey ? "Processing..." : "Customer Request"}
+                            {requestingSBItemId === actionKey ? "Processing..." : isAdmin ? "Request & Deliver" : "Customer Request"}
                           </button>
                         )}
                       </div>

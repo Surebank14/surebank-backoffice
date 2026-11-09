@@ -1,3 +1,5 @@
+import axios from "axios";
+import { url } from "../redux/sagas/url";
 import React, { useState,useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // import { fetchBranchRequest } from "../redux/slices/branchSlice";
@@ -53,6 +55,23 @@ const ManagerViewRepDashboard = () => {
       const { branches } = useSelector((state) => state.branch);
     
     const [dateRanges, setDateRanges] = useState({});
+    const [fwWithdrawal, setFWWithdrawal] = useState(0);
+    const [fwWithdrawalError, setFWWithdrawalError] = useState("");
+    const fwStartDate = dateRanges.date20?.startDate || "";
+    const fwEndDate = dateRanges.date20?.endDate || "";
+    useEffect(() => {
+      let active = true;
+      setFWWithdrawalError("");
+      axios.post(`${url}/api/mvrepdashboard/repfwwithdrawal/${staffId}`, {
+        date: { startDate: fwStartDate, endDate: fwEndDate }
+      }, { headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` } })
+        .then(({ data }) => { if (active) setFWWithdrawal(Number(data) || 0); })
+        .catch((error) => {
+          if (active) setFWWithdrawalError(error.response?.data?.message || "Unable to load FW withdrawals");
+        });
+      return () => { active = false; };
+    }, [staffId, fwStartDate, fwEndDate]);
+
     const [isEcommerceDepositModalOpen, setIsEcommerceDepositModalOpen] = useState(false);
     const {
       loading,
@@ -218,6 +237,13 @@ const ManagerViewRepDashboard = () => {
       <DashboardDateRangeFields rangeKey="date6" dateRanges={dateRanges} setDateRanges={setDateRanges} />
   
     </form>
+  </div>
+
+  <div className="p-1.5 sm:p-3 rounded-lg shadow-md ring-1 ring-white/70 bg-rose-200">
+    <h3 className="text-[10px] sm:text-xs font-semibold mb-1 sm:mb-2 leading-tight text-rose-800">FW Withdrawal</h3>
+    <p className="text-[11px] sm:text-sm font-bold text-rose-800">{fwWithdrawal.toLocaleString('en-US')}</p>
+    {fwWithdrawalError && <p className="text-xs text-red-700">{fwWithdrawalError}</p>}
+    <DashboardDateRangeFields rangeKey="date20" dateRanges={dateRanges} setDateRanges={setDateRanges} />
   </div>
 
   {/* Card 8 - Teal */}
