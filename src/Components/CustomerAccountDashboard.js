@@ -659,6 +659,10 @@ if(selectedAccount){
   };
   const handleSellIconClick = (account) => {
     setSelectedAccount(account);
+    if (isAdmin && (!Array.isArray(account.items) || account.items.length === 0)) {
+      setShowSellModal(true);
+      return;
+    }
     if (canRequestCustomerProduct) {
       if (Array.isArray(account.items) && account.items.length > 0) {
         setShowSBItemFulfillmentModal(true);
@@ -2038,7 +2042,7 @@ if(selectedAccount){
         {/* Sell Icon */}
         {canManageCustomerFunds && !hasSBItemDetails && (
         <button onClick={() => handleSellIconClick(account)} className="rounded-full bg-amber-50 px-3 py-2 text-amber-700 hover:bg-amber-100">
-          <i className="fas fa-shopping-cart text-lg md:text-lg" title={canRequestCustomerProduct ? "Customer Request" : "Sell"}></i>
+          <i className="fas fa-shopping-cart text-lg md:text-lg" title={isAdmin ? "Sell" : canRequestCustomerProduct ? "Customer Request" : "Sell"}></i>
         </button>
         )}
       </div>
