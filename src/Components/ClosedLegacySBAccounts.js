@@ -1,3 +1,4 @@
+import LegacySaleReversal from "./LegacySaleReversal";
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Link, Navigate } from "react-router-dom";
@@ -255,6 +256,7 @@ const ClosedLegacySBAccounts = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 md:p-4">
+              <LegacySaleReversal accountNumber={selectedAccount.SBAccountNumber} />
               {transactionsLoading ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-12 text-center text-sm font-semibold text-slate-500 dark:bg-slate-900">
                   <div className="mx-auto mb-3 h-9 w-9 animate-spin rounded-full border-4 border-orange-100 border-t-orange-500" />

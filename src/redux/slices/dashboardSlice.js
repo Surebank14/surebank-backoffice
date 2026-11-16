@@ -26,6 +26,8 @@ const initialState = {
     firstLoginBonusExpense: null,
     transactionBonusExpense: null,
     profit: null,
+    profitLoading: false,
+    profitError: null,
     ecommerceIncome: null,
     ecommerceDeposit: null,
     ecommerceDSDeposit: null,
@@ -302,13 +304,20 @@ const dashboardSlice = createSlice({
             state.error = action.payload
         },
         fetchTotalProfitRequest:(state)=>{
+            state.profitLoading = true;
+            state.profitError = null;
             state.loading = true
         },
         fetchTotalProfitSuccess:(state,action)=>{
             state.profit= action.payload;
+            state.profitLoading = false;
+            state.profitError = null;
             state.loading=false
         },
         fetchTotalProfitFailure:(state,action)=>{
+            state.profitLoading = false;
+            state.loading = false;
+            state.profitError = action.payload;
             state.error = action.payload
         },
         fetchEcommerceIncomeRequest:(state)=>{

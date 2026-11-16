@@ -145,6 +145,8 @@ const Dashboard = () => {
 	      firstLoginBonusExpense,
 	      transactionBonusExpense,
 	      profit,
+      profitLoading,
+      profitError,
       availablebalance,
       ecommerceIncome,
       ecommerceDeposit,
@@ -965,7 +967,8 @@ const Dashboard = () => {
 		  {/* Card 15 - Fuchsia */}
   <div className="p-1.5 sm:p-3 rounded-lg shadow-md ring-1 ring-white/70 bg-fuchsia-200">
     <h3 className="text-[10px] sm:text-xs font-semibold mb-1 sm:mb-2 leading-tight text-fuchsia-800">Profit</h3>
-    <p className="text-[11px] sm:text-sm font-bold text-fuchsia-800">{ newprofit?.toLocaleString('en-US') || 0}</p>
+    <p className="text-[11px] sm:text-sm font-bold text-fuchsia-800">{profitLoading ? 'Loading…' : profitError ? 'Unavailable' : profit == null ? '—' : newprofit.toLocaleString('en-US')}</p>
+    {profitError && <p role="alert" className="mt-1 text-xs text-red-700">{profitError}</p>}
     <form className="flex flex-col gap-1 mt-1">
       <Select2
         label="Branch"

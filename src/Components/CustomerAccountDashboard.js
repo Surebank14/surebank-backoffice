@@ -1,3 +1,4 @@
+import LegacySaleReversal from "./LegacySaleReversal";
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
@@ -2040,7 +2041,7 @@ if(selectedAccount){
           </button>
         )}
         {/* Sell Icon */}
-        {canManageCustomerFunds && !hasSBItemDetails && (
+        {canManageCustomerFunds && !hasSBItemDetails && Number(account.balance || 0) > 0 && (
         <button onClick={() => handleSellIconClick(account)} className="rounded-full bg-amber-50 px-3 py-2 text-amber-700 hover:bg-amber-100">
           <i className="fas fa-shopping-cart text-lg md:text-lg" title={isAdmin ? "Sell" : canRequestCustomerProduct ? "Customer Request" : "Sell"}></i>
         </button>
@@ -2048,6 +2049,7 @@ if(selectedAccount){
       </div>
       )}
       </div>
+      {isAdmin && !hasSBItemDetails && <LegacySaleReversal accountNumber={account.SBAccountNumber} />}
       {hasSBItemDetails && renderSBAccountItemsTable(account)}
     </li>
   )})}
