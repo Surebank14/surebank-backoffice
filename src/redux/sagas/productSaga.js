@@ -142,7 +142,7 @@ function* updateProductSaga(action) {
 }
 
 function* updateProductStockSaga(action) {
-  const { productId, quantity, variationId, stockItems } = action.payload;
+  const { productId, quantity, variationId, stockItems, branchId } = action.payload;
   try {
     const token = localStorage.getItem('authToken');
     const config = {
@@ -153,16 +153,12 @@ function* updateProductStockSaga(action) {
     const updates = Array.isArray(stockItems) && stockItems.length > 0
       ? stockItems
       : [{ quantity, variationId: variationId || '' }];
-    let response;
-
-    for (const item of updates) {
-      response = yield call(
-        axios.put,
-        `${url}/api/products/${productId}/stock`,
-        { quantity: item.quantity, operation: 'set', variationId: item.variationId || '' },
-        config
-      );
-    }
+    const response = yield call(
+      axios.put,
+      `${url}/api/products/${productId}/stock`,
+      { branchId, stockItems: updates },
+      config
+    );
 
     yield put(updateProductStockSuccess(response.data));
   } catch (error) {

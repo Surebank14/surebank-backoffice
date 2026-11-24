@@ -18,6 +18,7 @@ import {
 import { fetchCategoriesRequest } from "../redux/slices/productCategorySlice";
 import { fetchBranchRequest } from "../redux/slices/branchSlice";
 import Loader from "./Loader";
+import ProductStockHistory from "./ProductStockHistory";
 import { resolveImageUrl } from "../utils/image";
 import { getProductDisplayPrice } from "../utils/pricing";
 
@@ -68,6 +69,7 @@ const Products = () => {
   const {
     products,
     loading,
+    error,
     productDemand,
     productDemandDetail,
     productDemandLoading,
@@ -92,6 +94,8 @@ const Products = () => {
   const [selectedDemandProduct, setSelectedDemandProduct] = useState(null);
   const [selectedStockProduct, setSelectedStockProduct] = useState(null);
   const [selectedBranchStockProduct, setSelectedBranchStockProduct] = useState(null);
+  const [stockBranch, setStockBranch] = useState("");
+  const [stockHistoryProduct, setStockHistoryProduct] = useState(null);
   const [stockModalValues, setStockModalValues] = useState({});
   const [selectedTransferProduct, setSelectedTransferProduct] = useState(null);
   const [transferForm, setTransferForm] = useState({
@@ -172,26 +176,26 @@ const Products = () => {
 
   const getStockInputKey = (productId, variationId = "") => `${productId}:${variationId}`;
 
-  const getBranchStockQuantity = (product, variationId = "") => {
+  const getBranchStockQuantity = (product, variationId = "", branchId = staffBranch) => {
     const row = (product.branchStocks || []).find(
-      (stock) => stock.branchId === staffBranch && (stock.variationId || "") === (variationId || "")
+      (stock) => stock.branchId === branchId && (stock.variationId || "") === (variationId || "")
     );
     return Number(row?.quantity || 0);
   };
 
+  const selectStockBranch = (product, branchId) => {
+    setStockBranch(branchId);
+    const variations = product.hasVariations && product.variations?.length
+      ? product.variations.map((variation) => variation._id)
+      : [""];
+    setStockModalValues(Object.fromEntries(variations.map((variationId) => [
+      getStockInputKey(product._id, variationId),
+      getBranchStockQuantity(product, variationId, branchId),
+    ])));
+  };
+
   const openStockModal = (product) => {
-    if (!isManager) return;
-    const nextValues = {};
-
-    if (product.hasVariations && Array.isArray(product.variations) && product.variations.length > 0) {
-      product.variations.forEach((variation) => {
-        nextValues[getStockInputKey(product._id, variation._id)] = getBranchStockQuantity(product, variation._id);
-      });
-    } else {
-      nextValues[getStockInputKey(product._id)] = getBranchStockQuantity(product);
-    }
-
-    setStockModalValues(nextValues);
+    selectStockBranch(product, isAdmin ? "" : staffBranch);
     setSelectedStockProduct(product);
   };
 
@@ -292,7 +296,7 @@ const Products = () => {
 
   const handleStockModalSubmit = (event) => {
     event.preventDefault();
-    if (!isManager || !selectedStockProduct) return;
+    if (!canViewStockTransfers || !selectedStockProduct || !stockBranch) return;
 
     const product = selectedStockProduct;
     const stockItems = product.hasVariations && Array.isArray(product.variations) && product.variations.length > 0
@@ -309,7 +313,12 @@ const Products = () => {
       return;
     }
 
-    dispatch(updateProductStockRequest({ productId: product._id, stockItems }));
+    const changedItems = stockItems.filter((item) =>
+      item.quantity !== getBranchStockQuantity(product, item.variationId, stockBranch)
+    );
+    if (changedItems.length) {
+      dispatch(updateProductStockRequest({ productId: product._id, branchId: stockBranch, stockItems: changedItems }));
+    }
     closeStockModal();
   };
 
@@ -541,23 +550,32 @@ const Products = () => {
                 {(canManageEcommerce || isManager) && (
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 whitespace-nowrap">
-                      {isManager && (
+                      {canViewStockTransfers && (
                         <>
                           <button
                             type="button"
                             onClick={() => openStockModal(product)}
                             className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
                           >
-                            Stock
+                            {isAdmin ? "Edit Stock" : "Stock"}
                           </button>
                           <button
                             type="button"
-                            onClick={() => openTransferModal(product)}
-                            className="rounded bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-700"
+                            onClick={() => setStockHistoryProduct(product)}
+                            className="rounded border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-700"
                           >
-                            Transfer
+                            Stock History
                           </button>
                         </>
+                      )}
+                      {isManager && (
+                        <button
+                          type="button"
+                          onClick={() => openTransferModal(product)}
+                          className="rounded bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-700"
+                        >
+                          Transfer
+                        </button>
                       )}
                       {isAdmin && (
                         <button
@@ -565,7 +583,7 @@ const Products = () => {
                           onClick={() => openBranchStockReport(product)}
                           className="rounded border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
                         >
-                          Stock
+                          Branch Stock
                         </button>
                       )}
                       {canManageEcommerce && (
@@ -599,6 +617,8 @@ const Products = () => {
           No products found
         </div>
       )}
+
+      {error && <p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
 
       {isAdmin && selectedBranchStockProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -675,7 +695,15 @@ const Products = () => {
         </div>
       )}
 
-      {isManager && selectedStockProduct && (
+      {stockHistoryProduct && (
+        <ProductStockHistory
+          product={stockHistoryProduct}
+          branches={isAdmin ? branches || [] : null}
+          onClose={() => setStockHistoryProduct(null)}
+        />
+      )}
+
+      {canViewStockTransfers && selectedStockProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-xl">
             <div className="flex items-start justify-between gap-4 border-b p-4">
@@ -694,48 +722,66 @@ const Products = () => {
 
             <form onSubmit={handleStockModalSubmit}>
               <div className="max-h-[65vh] overflow-auto p-4">
-                {selectedStockProduct.hasVariations && Array.isArray(selectedStockProduct.variations) && selectedStockProduct.variations.length > 0 ? (
-                  <div className="space-y-3">
-                    {selectedStockProduct.variations.map((variation) => {
-                      const inputKey = getStockInputKey(selectedStockProduct._id, variation._id);
-                      return (
-                        <div key={variation._id} className="grid gap-3 rounded border border-gray-200 p-3 sm:grid-cols-[1fr_140px] sm:items-center">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-gray-900">{variation.name}</p>
-                            {variation.sku && (
-                              <p className="mt-1 text-xs text-gray-500">SKU: {variation.sku}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-xs font-medium uppercase text-gray-500">
-                              Quantity
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={stockModalValues[inputKey] ?? 0}
-                              onChange={(event) => handleStockModalChange(selectedStockProduct._id, variation._id, event.target.value)}
-                              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded border border-gray-200 p-4">
-                    <label className="mb-2 block text-sm font-medium text-gray-700">
-                      Quantity
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={stockModalValues[getStockInputKey(selectedStockProduct._id)] ?? 0}
-                      onChange={(event) => handleStockModalChange(selectedStockProduct._id, "", event.target.value)}
-                      className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                    />
-                  </div>
+                {isAdmin && (
+                  <label className="mb-4 block text-sm font-medium text-gray-700">
+                    Branch
+                    <select
+                      required
+                      value={stockBranch}
+                      onChange={(event) => selectStockBranch(selectedStockProduct, event.target.value)}
+                      className="mt-1 block w-full rounded border border-gray-300 px-3 py-2"
+                    >
+                      <option value="">Select a branch</option>
+                      {(branches || []).filter((branch) => branch.isActive !== false).map((branch) => (
+                        <option key={branch._id} value={branch._id}>{branch.name}</option>
+                      ))}
+                    </select>
+                  </label>
                 )}
+                <fieldset disabled={!stockBranch} className="disabled:opacity-50">
+                  {selectedStockProduct.hasVariations && Array.isArray(selectedStockProduct.variations) && selectedStockProduct.variations.length > 0 ? (
+                    <div className="space-y-3">
+                      {selectedStockProduct.variations.map((variation) => {
+                        const inputKey = getStockInputKey(selectedStockProduct._id, variation._id);
+                        return (
+                          <div key={variation._id} className="grid gap-3 rounded border border-gray-200 p-3 sm:grid-cols-[1fr_140px] sm:items-center">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-gray-900">{variation.name}</p>
+                              {variation.sku && (
+                                <p className="mt-1 text-xs text-gray-500">SKU: {variation.sku}</p>
+                              )}
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-medium uppercase text-gray-500">
+                                Quantity
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={stockModalValues[inputKey] ?? 0}
+                                onChange={(event) => handleStockModalChange(selectedStockProduct._id, variation._id, event.target.value)}
+                                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded border border-gray-200 p-4">
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={stockModalValues[getStockInputKey(selectedStockProduct._id)] ?? 0}
+                        onChange={(event) => handleStockModalChange(selectedStockProduct._id, "", event.target.value)}
+                        className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </div>
+                  )}
+                </fieldset>
               </div>
 
               <div className="flex justify-end gap-3 border-t bg-gray-50 p-4">
@@ -748,6 +794,7 @@ const Products = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={!stockBranch}
                   className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
                 >
                   Save Stock
